@@ -1,14 +1,16 @@
 name: Build ColorEcho
 
 on:
-  workflow_dispatch:  # manual trigger (Run workflow button)
+  workflow_dispatch:  # manual trigger
   push:
-    branches: [ main ]  # runs on push to main
-  pull_request:         # runs on PRs
+    branches: [ main ] # runs on push to main
+  pull_request:        # runs on PRs
 
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # future-proof Node.js 24
 
     strategy:
       matrix:
@@ -21,18 +23,20 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '8.0.x'  # switch to 7.0.x if 8.0 not yet available
 
       - name: Restore
         run: dotnet restore
+        working-directory: ColorEcho  # change if .sln is in a subfolder
 
       - name: Publish (${{ matrix.rid }})
         run: |
-          dotnet publish -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true
+          dotnet publish -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true -v:detailed
+        working-directory: ColorEcho  # change if needed
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
           path: |
-            **/bin/Release/**/${{ matrix.rid }}/publish/*
+            ColorEcho/bin/Release/**/${{ matrix.rid }}/publish/*
