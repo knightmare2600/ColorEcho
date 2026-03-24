@@ -16,39 +16,55 @@ jobs:
         rid: [win-x64, win-arm64]
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout repo
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup MSBuild (Visual Studio Build Tools)
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+      # 2️⃣ Setup .NET SDK
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-      # 3️⃣ Restore NuGet packages for .NET Framework solution
-      - name: Restore NuGet packages
+      # 3️⃣ Show .NET info for debugging
+      - name: Show .NET info
+        run: dotnet --info
+
+      # 4️⃣ Restore NuGet packages (PowerShell syntax)
+      - name: Restore
         working-directory: src
-        run: nuget restore ColorEcho.sln
+        shell: pwsh
+        run: |
+          dotnet restore ColorEcho.sln
 
-      # 4️⃣ Build solution using MSBuild
-      - name: Build with MSBuild
+      # 5️⃣ Build solution
+      - name: Build
         working-directory: src
-        run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
+        shell: pwsh
+        run: |
+          dotnet build ColorEcho.sln -c Release --no-restore
 
-      # 5️⃣ (Optional) Publish self-contained single file executables if supported
-      # Note: Only works if ColorEcho.csproj is SDK-style compatible; otherwise skip
+      # 6️⃣ Publish self-contained single-file executables (SDK-style only)
       - name: Publish (${{ matrix.rid }})
         working-directory: src
+        shell: pwsh
         run: |
-          if exist ColorEcho.csproj (
-            dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true
-          ) else (
-            echo "Publish skipped: project is not SDK-style"
-          )
+          if (Test-Path "ColorEcho.csproj") {
+              dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true
+          } else {
+              Write-Host "Publish skipped: project is not SDK-style"
+          }
 
-      # 6️⃣ Upload binaries as artifacts
+      # 7️⃣ List publish output for debugging
+      - name: List output
+        working-directory: src
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse bin\Release
+
+      # 8️⃣ Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
-          path: |
-            src\bin\Release\*
+          path: src/bin/Release/**/publish/*
