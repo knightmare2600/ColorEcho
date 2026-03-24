@@ -1,59 +1,102 @@
-name: Build ColorEcho
+name: Build and Release ColorEcho
 
 on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
-  pull_request:
 
 jobs:
   build:
     runs-on: windows-latest
-
     strategy:
-      fail-fast: false
       matrix:
         rid: [win-x64, win-arm64]
 
     steps:
-      # 1️⃣ Checkout repository
+      # Checkout repo
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup MSBuild (full .NET Framework)
+      # Setup MSBuild (full .NET Framework)
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      # 3️⃣ Restore NuGet packages
-      - name: Restore NuGet packages
+      # Restore NuGet
+      - name: Restore NuGet
         working-directory: src
         shell: pwsh
-        run: |
-          nuget restore ColorEcho.sln
+        run: nuget restore ColorEcho.sln
 
-      # 4️⃣ Build solution using full MSBuild
+      # Build solution
       - name: Build with MSBuild
         working-directory: src
         shell: pwsh
-        run: |
-          msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
+        run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-      # 5️⃣ Optional: Publish step is just copying bin\Release for classic .NET Framework
-      - name: Prepare artifacts
+      # Zip the build for this RID
+      - name: Zip Artifact
         working-directory: src
         shell: pwsh
         run: |
-          $publishPath = "bin\Release"
-          if (Test-Path $publishPath) {
-              Write-Host "Found release binaries in $publishPath"
-          } else {
-              Write-Host "No release binaries found, check MSBuild logs"
-              exit 1
-          }
+          $zipPath = "bin\Release\ColorEcho-${{ matrix.rid }}.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath }
+          Compress-Archive -Path "bin\Release\*" -DestinationPath $zipPath
+          Write-Host "Zipped $zipPath"
 
-      # 6️⃣ Upload artifacts
-      - name: Upload artifacts
+      # Upload artifact for the next job
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
-          path: src/bin/Release/*
+          path: src/bin/Release/ColorEcho-${{ matrix.rid }}.zip
+
+  release:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      # Checkout repo (required to use upload-release-asset)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download artifacts from both builds
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ColorEcho-win-x64
+          path: ./artifacts
+
+      - name: Download ARM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ColorEcho-win-arm64
+          path: ./artifacts
+
+      # Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: ColorEcho v1.0.${{ github.run_number }}
+          body: Automated release with x64 and ARM builds.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload both ZIPs to the release
+      - name: Upload x64 Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/ColorEcho-win-x64/ColorEcho-win-x64.zip
+          asset_name: ColorEcho-win-x64.zip
+          asset_content_type: application/zip
+
+      - name: Upload ARM Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/ColorEcho-win-arm64/ColorEcho-win-arm64.zip
+          asset_name: ColorEcho-win-arm64.zip
+          asset_content_type: application/zip
