@@ -16,43 +16,39 @@ jobs:
         rid: [win-x64, win-arm64]
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout the repository
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Install .NET SDK (8.0.x, fallback to 7.0 if needed)
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+      # 2️⃣ Setup MSBuild (Visual Studio Build Tools)
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-      # 3️⃣ Show .NET info (debug)
-      - name: Show .NET info
-        run: dotnet --info
-
-      # 4️⃣ Restore NuGet packages (inside src/)
-      - name: Restore
+      # 3️⃣ Restore NuGet packages for .NET Framework solution
+      - name: Restore NuGet packages
         working-directory: src
-        run: dotnet restore ColorEcho.sln
+        run: nuget restore ColorEcho.sln
 
-      # 5️⃣ Build the solution (no restore needed)
-      - name: Build
+      # 4️⃣ Build solution using MSBuild
+      - name: Build with MSBuild
         working-directory: src
-        run: dotnet build ColorEcho.sln -c Release --no-restore
+        run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-      # 6️⃣ Publish the executable (self-contained, single file)
+      # 5️⃣ (Optional) Publish self-contained single file executables if supported
+      # Note: Only works if ColorEcho.csproj is SDK-style compatible; otherwise skip
       - name: Publish (${{ matrix.rid }})
         working-directory: src
-        run: dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true --no-build -v:detailed
+        run: |
+          if exist ColorEcho.csproj (
+            dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true
+          ) else (
+            echo "Publish skipped: project is not SDK-style"
+          )
 
-      # 7️⃣ List publish output (debug)
-      - name: List output
-        working-directory: src
-        run: dir -Recurse bin\Release
-
-      # 8️⃣ Upload artifact
-      - name: Upload artifact
+      # 6️⃣ Upload binaries as artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
-          path: src/bin/Release/**/publish/*
+          path: |
+            src\bin\Release\*
