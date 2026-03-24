@@ -16,55 +16,44 @@ jobs:
         rid: [win-x64, win-arm64]
 
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup .NET SDK
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+      # 2️⃣ Setup MSBuild (full .NET Framework)
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-      # 3️⃣ Show .NET info for debugging
-      - name: Show .NET info
-        run: dotnet --info
-
-      # 4️⃣ Restore NuGet packages (PowerShell syntax)
-      - name: Restore
+      # 3️⃣ Restore NuGet packages
+      - name: Restore NuGet packages
         working-directory: src
         shell: pwsh
         run: |
-          dotnet restore ColorEcho.sln
+          nuget restore ColorEcho.sln
 
-      # 5️⃣ Build solution
-      - name: Build
+      # 4️⃣ Build solution using full MSBuild
+      - name: Build with MSBuild
         working-directory: src
         shell: pwsh
         run: |
-          dotnet build ColorEcho.sln -c Release --no-restore
+          msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-      # 6️⃣ Publish self-contained single-file executables (SDK-style only)
-      - name: Publish (${{ matrix.rid }})
+      # 5️⃣ Optional: Publish step is just copying bin\Release for classic .NET Framework
+      - name: Prepare artifacts
         working-directory: src
         shell: pwsh
         run: |
-          if (Test-Path "ColorEcho.csproj") {
-              dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true
+          $publishPath = "bin\Release"
+          if (Test-Path $publishPath) {
+              Write-Host "Found release binaries in $publishPath"
           } else {
-              Write-Host "Publish skipped: project is not SDK-style"
+              Write-Host "No release binaries found, check MSBuild logs"
+              exit 1
           }
 
-      # 7️⃣ List publish output for debugging
-      - name: List output
-        working-directory: src
-        shell: pwsh
-        run: |
-          Get-ChildItem -Recurse bin\Release
-
-      # 8️⃣ Upload artifacts
+      # 6️⃣ Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
-          path: src/bin/Release/**/publish/*
+          path: src/bin/Release/*
