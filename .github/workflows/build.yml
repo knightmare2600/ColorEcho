@@ -13,27 +13,27 @@ jobs:
         rid: [win-x64, win-arm64]
 
     steps:
-      # Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Setup MSBuild (full .NET Framework)
+      # 2️⃣ Setup MSBuild (full .NET Framework)
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      # Restore NuGet
+      # 3️⃣ Restore NuGet packages
       - name: Restore NuGet
         working-directory: src
         shell: pwsh
         run: nuget restore ColorEcho.sln
 
-      # Build solution
+      # 4️⃣ Build solution using full MSBuild
       - name: Build with MSBuild
         working-directory: src
         shell: pwsh
         run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-      # Zip the build for this RID
+      # 5️⃣ Zip the build for this RID
       - name: Zip Artifact
         working-directory: src
         shell: pwsh
@@ -43,7 +43,7 @@ jobs:
           Compress-Archive -Path "bin\Release\*" -DestinationPath $zipPath
           Write-Host "Zipped $zipPath"
 
-      # Upload artifact for the next job
+      # 6️⃣ Upload artifact for next job
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -54,27 +54,28 @@ jobs:
     runs-on: windows-latest
     needs: build
     steps:
-      # Checkout repo (required to use upload-release-asset)
+      # 1️⃣ Checkout repository (needed for release)
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Download artifacts from both builds
+      # 2️⃣ Download x64 artifact
       - name: Download x64 artifact
         uses: actions/download-artifact@v4
         with:
           name: ColorEcho-win-x64
           path: ./artifacts
 
+      # 3️⃣ Download ARM artifact
       - name: Download ARM artifact
         uses: actions/download-artifact@v4
         with:
           name: ColorEcho-win-arm64
           path: ./artifacts
 
-      # Create GitHub Release
+      # 4️⃣ Create GitHub Release
       - name: Create GitHub Release
         id: create_release
-        uses: actions/create-release@v2
+        uses: actions/create-release@v1
         with:
           tag_name: v1.0.${{ github.run_number }}
           release_name: ColorEcho v1.0.${{ github.run_number }}
@@ -84,7 +85,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload both ZIPs to the release
+      # 5️⃣ Upload x64 ZIP to Release
       - name: Upload x64 Release Asset
         uses: actions/upload-release-asset@v1
         with:
@@ -93,6 +94,7 @@ jobs:
           asset_name: ColorEcho-win-x64.zip
           asset_content_type: application/zip
 
+      # 6️⃣ Upload ARM ZIP to Release
       - name: Upload ARM Release Asset
         uses: actions/upload-release-asset@v1
         with:
