@@ -43,7 +43,7 @@ jobs:
           Compress-Archive -Path "bin\Release\*" -DestinationPath $zipPath
           Write-Host "Zipped $zipPath"
 
-      # 6️⃣ Upload artifact for next job
+      # 6️⃣ Upload artifact for the release job
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -54,23 +54,23 @@ jobs:
     runs-on: windows-latest
     needs: build
     steps:
-      # 1️⃣ Checkout repository (needed for release)
+      # 1️⃣ Checkout repository (required for release steps)
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Download x64 artifact
+      # 2️⃣ Download x64 artifact into its own subfolder
       - name: Download x64 artifact
         uses: actions/download-artifact@v4
         with:
           name: ColorEcho-win-x64
-          path: ./artifacts
+          path: ./artifacts/ColorEcho-win-x64
 
-      # 3️⃣ Download ARM artifact
+      # 3️⃣ Download ARM artifact into its own subfolder
       - name: Download ARM artifact
         uses: actions/download-artifact@v4
         with:
           name: ColorEcho-win-arm64
-          path: ./artifacts
+          path: ./artifacts/ColorEcho-win-arm64
 
       # 4️⃣ Create GitHub Release
       - name: Create GitHub Release
