@@ -16,38 +16,43 @@ jobs:
         rid: [win-x64, win-arm64]
 
     steps:
+      # 1️⃣ Checkout the repo
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2️⃣ Install .NET SDK (8.0.x, fallback to 7.0 if needed)
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Show .NET info (debug)
+      # 3️⃣ Show .NET info (debug)
+      - name: Show .NET info
         run: dotnet --info
 
+      # 4️⃣ Restore NuGet packages (inside src/)
       - name: Restore
+        working-directory: src
         run: dotnet restore ColorEcho.sln
 
+      # 5️⃣ Build the solution (no restore needed)
       - name: Build
+        working-directory: src
         run: dotnet build ColorEcho.sln -c Release --no-restore
 
+      # 6️⃣ Publish the executable (self-contained, single file)
       - name: Publish (${{ matrix.rid }})
-        run: >
-          dotnet publish ColorEcho.csproj
-          -c Release
-          -r ${{ matrix.rid }}
-          --self-contained true
-          /p:PublishSingleFile=true
-          --no-build
+        working-directory: src
+        run: dotnet publish ColorEcho.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true --no-build -v:detailed
 
-      - name: List output (debug)
-        run: dir -Recurse
+      # 7️⃣ List publish output (debug)
+      - name: List output
+        working-directory: src
+        run: dir -Recurse bin\Release
 
+      # 8️⃣ Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ColorEcho-${{ matrix.rid }}
-          path: |
-            **/publish/*
+          path: src/bin/Release/**/publish/*
