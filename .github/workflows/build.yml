@@ -1,61 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0"
-         DefaultTargets="Build"
-         xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
-          Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1CD1F591-96F7-4E40-92BB-0AB87A46C764}</ProjectGuid>
-    <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Cyotek.ColorEcho</RootNamespace>
-    <AssemblyName>cecho</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+name: Build
 
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-  </ItemGroup>
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
-  <ItemGroup>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
+jobs:
+  build:
+    runs-on: windows-latest
 
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-  <!--
-  To modify your build process, add your task inside one of the targets below and uncomment it.
-  Other similar extension points exist, see Microsoft.Common.targets.
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
-  <Target Name="BeforeBuild">
-  </Target>
+    - name: Restore
+      run: dotnet restore
 
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
 
-</Project>
+    - name: Publish win-x64
+      run: dotnet publish ColorEcho/ColorEcho.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+
+    - name: Publish win-arm64
+      run: dotnet publish ColorEcho/ColorEcho.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -o publish/win-arm64
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ColorEcho
+        path: publish/
