@@ -1,20 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Target a more compatible runtime -->
-    <TargetFramework>net6.0</TargetFramework>
-    <!-- Build settings for WinPE -->
     <OutputType>Exe</OutputType>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <!-- Critical for WinPE -->
+    <!-- WinPE-compatible runtime -->
+    <TargetFramework>net6.0</TargetFramework>
+    <!-- Multi-arch support -->
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <!-- Critical -->
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- Reduce dependency surface -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <!-- Avoid newer Windows-only API assumptions -->
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <!-- Optional: smaller + simpler binary -->
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
+    <!-- Keep it simple -->
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 </Project>
