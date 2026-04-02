@@ -1,104 +1,61 @@
-name: Build and Release ColorEcho
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0"
+         DefaultTargets="Build"
+         xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+          Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{1CD1F591-96F7-4E40-92BB-0AB87A46C764}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Cyotek.ColorEcho</RootNamespace>
+    <AssemblyName>cecho</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main, master ]
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
 
-jobs:
-  build:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        rid: [win-x64, win-arm64]
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
 
-    steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout
-        uses: actions/checkout@v4
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 
-      # 2️⃣ Setup MSBuild (full .NET Framework)
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+  <!--
+  To modify your build process, add your task inside one of the targets below and uncomment it.
+  Other similar extension points exist, see Microsoft.Common.targets.
 
-      # 3️⃣ Restore NuGet packages
-      - name: Restore NuGet
-        working-directory: src
-        shell: pwsh
-        run: nuget restore ColorEcho.sln
+  <Target Name="BeforeBuild">
+  </Target>
 
-      # 4️⃣ Build solution using full MSBuild
-      - name: Build with MSBuild
-        working-directory: src
-        shell: pwsh
-        run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
+  <Target Name="AfterBuild">
+  </Target>
+  -->
 
-      # 5️⃣ Zip the build for this RID
-      - name: Zip Artifact
-        working-directory: src
-        shell: pwsh
-        run: |
-          $zipPath = "bin\Release\ColorEcho-${{ matrix.rid }}.zip"
-          if (Test-Path $zipPath) { Remove-Item $zipPath }
-          Compress-Archive -Path "bin\Release\*" -DestinationPath $zipPath
-          Write-Host "Zipped $zipPath"
-
-      # 6️⃣ Upload artifact for the release job
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ColorEcho-${{ matrix.rid }}
-          path: src/bin/Release/ColorEcho-${{ matrix.rid }}.zip
-
-  release:
-    runs-on: windows-latest
-    needs: build
-    steps:
-      # 1️⃣ Checkout repository (required for release steps)
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # 2️⃣ Download x64 artifact into its own subfolder
-      - name: Download x64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ColorEcho-win-x64
-          path: ./artifacts/ColorEcho-win-x64
-
-      # 3️⃣ Download ARM artifact into its own subfolder
-      - name: Download ARM artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ColorEcho-win-arm64
-          path: ./artifacts/ColorEcho-win-arm64
-
-      # 4️⃣ Create GitHub Release
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: ColorEcho v1.0.${{ github.run_number }}
-          body: Automated release with x64 and ARM builds.
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 5️⃣ Upload x64 ZIP to Release
-      - name: Upload x64 Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/ColorEcho-win-x64/ColorEcho-win-x64.zip
-          asset_name: ColorEcho-win-x64.zip
-          asset_content_type: application/zip
-
-      # 6️⃣ Upload ARM ZIP to Release
-      - name: Upload ARM Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/ColorEcho-win-arm64/ColorEcho-win-arm64.zip
-          asset_name: ColorEcho-win-arm64.zip
-          asset_content_type: application/zip
+</Project>
