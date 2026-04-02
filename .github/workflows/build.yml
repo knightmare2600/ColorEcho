@@ -1,38 +1,104 @@
-name: Build
+name: Build and Release ColorEcho
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        rid: [win-x64, win-arm64]
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      # 1️⃣ Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
+      # 2️⃣ Setup MSBuild (full .NET Framework)
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-    - name: Restore
-      run: dotnet restore
+      # 3️⃣ Restore NuGet packages
+      - name: Restore NuGet
+        working-directory: src
+        shell: pwsh
+        run: nuget restore ColorEcho.sln
 
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+      # 4️⃣ Build solution using full MSBuild
+      - name: Build with MSBuild
+        working-directory: src
+        shell: pwsh
+        run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-    - name: Publish win-x64
-      run: dotnet publish ColorEcho/ColorEcho.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+      # 5️⃣ Zip the build for this RID
+      - name: Zip Artifact
+        working-directory: src
+        shell: pwsh
+        run: |
+          $zipPath = "bin\Release\ColorEcho-${{ matrix.rid }}.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath }
+          Compress-Archive -Path "bin\Release\*" -DestinationPath $zipPath
+          Write-Host "Zipped $zipPath"
 
-    - name: Publish win-arm64
-      run: dotnet publish ColorEcho/ColorEcho.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -o publish/win-arm64
+      # 6️⃣ Upload artifact for next job
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ColorEcho-${{ matrix.rid }}
+          path: src/bin/Release/ColorEcho-${{ matrix.rid }}.zip
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ColorEcho
-        path: publish/
+  release:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      # 1️⃣ Checkout repository (needed for release)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2️⃣ Download x64 artifact
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ColorEcho-win-x64
+          path: ./artifacts
+
+      # 3️⃣ Download ARM artifact
+      - name: Download ARM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ColorEcho-win-arm64
+          path: ./artifacts
+
+      # 4️⃣ Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: ColorEcho v1.0.${{ github.run_number }}
+          body: Automated release with x64 and ARM builds.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5️⃣ Upload x64 ZIP to Release
+      - name: Upload x64 Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/ColorEcho-win-x64/ColorEcho-win-x64.zip
+          asset_name: ColorEcho-win-x64.zip
+          asset_content_type: application/zip
+
+      # 6️⃣ Upload ARM ZIP to Release
+      - name: Upload ARM Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/ColorEcho-win-arm64/ColorEcho-win-arm64.zip
+          asset_name: ColorEcho-win-arm64.zip
+          asset_content_type: application/zip
