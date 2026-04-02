@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- WinPE-compatible runtime -->
+    <!-- Keep modern but stable -->
     <TargetFramework>net6.0</TargetFramework>
-    <!-- Multi-arch support -->
+    <!-- Multi-arch -->
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <!-- Critical -->
+    <!-- WinPE critical bits -->
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- Keep it simple -->
-    <PublishTrimmed>false</PublishTrimmed>
+    <!-- FIX YOUR ERROR -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 </Project>
