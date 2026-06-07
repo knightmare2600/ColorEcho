@@ -5,20 +5,20 @@ on:
   push:
     branches: [ main, master ]
 
-# 👇 Opt into Node 24 early (removes deprecation warnings)
+# 🔧 Future-proof Node 24 opt-in (prevents deprecation warnings)
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     strategy:
       matrix:
-        rid: [win-x64, win-x86, win-arm64]
+        rid: [win-x86, win-x64, win-arm64]
 
     steps:
-      # 1️⃣ Checkout
+      # 1️⃣ Checkout source
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -26,7 +26,7 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # 3️⃣ Restore NuGet packages
+      # 3️⃣ Restore NuGet
       - name: Restore NuGet
         working-directory: src
         shell: pwsh
@@ -38,8 +38,8 @@ jobs:
         shell: pwsh
         run: msbuild ColorEcho.sln /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
 
-      # 5️⃣ Create ZIP (stable pathing)
-      - name: Zip Artifact
+      # 5️⃣ Create ZIP per RID
+      - name: Create ZIP
         working-directory: src
         shell: pwsh
         run: |
@@ -53,7 +53,7 @@ jobs:
           Compress-Archive -Path "$outDir\*" -DestinationPath $zipPath
           Write-Host "Created $zipPath"
 
-      # 6️⃣ Upload artifact (flat, predictable)
+      # 6️⃣ Upload artifact (explicit + reliable)
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
@@ -63,30 +63,35 @@ jobs:
 
 
   release:
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: build
 
     steps:
-      # 1️⃣ Checkout
+      # 1️⃣ Checkout (required for release action metadata)
       - name: Checkout
         uses: actions/checkout@v5
 
-      # 2️⃣ Download all artifacts (flattened structure)
+      # 2️⃣ Download artifacts (flattened for simplicity)
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
           path: ./artifacts
           merge-multiple: true
 
-      # 3️⃣ Create GitHub Release (modern replacement)
+      # 3️⃣ Create GitHub Release + upload assets (modern)
       - name: Create Release
-        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: ColorEcho v1.0.${{ github.run_number }}
-          body: Automated release with x64 and ARM builds.
+          body: |
+            Automated release:
+            - win-x86
+            - win-x64
+            - win-arm64
+
           files: |
+            ./artifacts/ColorEcho-win-x86.zip
             ./artifacts/ColorEcho-win-x64.zip
             ./artifacts/ColorEcho-win-arm64.zip
         env:
